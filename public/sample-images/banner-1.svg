@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="750" height="340" viewBox="0 0 750 340">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#6366f1"/>
+      <stop offset="1" stop-color="#22d3ee"/>
+    </linearGradient>
+  </defs>
+  <rect width="750" height="340" fill="url(#g)"/>
+  <circle cx="640" cy="60" r="90" fill="#ffffff" opacity="0.12"/>
+  <circle cx="90" cy="300" r="120" fill="#ffffff" opacity="0.08"/>
+  <text x="48" y="150" font-family="sans-serif" font-size="44" font-weight="bold" fill="#ffffff">新品首发</text>
+  <text x="48" y="200" font-family="sans-serif" font-size="22" fill="#ffffff" opacity="0.92">NEW ARRIVAL · 全场满 199 减 50</text>
+  <rect x="48" y="230" width="150" height="46" rx="23" fill="#ffffff"/>
+  <text x="80" y="260" font-family="sans-serif" font-size="20" fill="#4f46e5">立即抢购</text>
+</svg>

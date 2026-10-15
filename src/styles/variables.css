@@ -1,0 +1,13 @@
+:root {
+  --visio-color-primary: #4f46e5;
+  --visio-color-primary-light: #eef2ff;
+  --visio-color-danger: #ef4444;
+  --visio-bg-layout: #eef0f4;
+  --visio-bg-panel: #ffffff;
+  --visio-border: #e5e7eb;
+  --visio-text-primary: #111827;
+  --visio-text-secondary: #6b7280;
+  --visio-text-disabled: #9ca3af;
+  --visio-radius-sm: 6px;
+  --visio-radius-md: 10px;
+}
