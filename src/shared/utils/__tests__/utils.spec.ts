@@ -68,6 +68,17 @@ describe('debounce', () => {
     expect(calls).toEqual([2])
     vi.useRealTimers()
   })
+
+  it('cancel 丢弃等待中的执行', () => {
+    vi.useFakeTimers()
+    const calls: number[] = []
+    const fn = debounce((v: number) => calls.push(v), 100)
+    fn(1)
+    fn.cancel()
+    vi.advanceTimersByTime(200)
+    expect(calls).toEqual([])
+    vi.useRealTimers()
+  })
 })
 
 describe('formatDateTime', () => {

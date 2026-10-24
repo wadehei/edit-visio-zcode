@@ -18,6 +18,25 @@ function isValidRecord(value: unknown): value is PageRecord {
   )
 }
 
+/** 损坏备份最多保留份数,超出删最旧,防止解析失败反复发生时撑爆存储 */
+const CORRUPTED_BACKUP_LIMIT = 3
+
+function backupCorrupted(raw: string) {
+  const prefix = `${STORAGE_KEYS.pages}:corrupted:`
+  try {
+    const keys = Object.keys(localStorage)
+      .filter((k) => k.startsWith(prefix))
+      .sort()
+    while (keys.length >= CORRUPTED_BACKUP_LIMIT) {
+      const oldest = keys.shift()
+      if (oldest) localStorage.removeItem(oldest)
+    }
+    localStorage.setItem(`${prefix}${Date.now()}`, raw)
+  } catch {
+    /* 备份失败时忽略 */
+  }
+}
+
 function loadPages(): PageRecord[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEYS.pages)
@@ -27,12 +46,8 @@ function loadPages(): PageRecord[] {
     return parsed.filter(isValidRecord)
   } catch (error) {
     // 备份损坏的原始数据,避免空数组在下次 persist 时覆盖真实数据
-    try {
-      const raw = localStorage.getItem(STORAGE_KEYS.pages)
-      if (raw) localStorage.setItem(`${STORAGE_KEYS.pages}:corrupted:${Date.now()}`, raw)
-    } catch {
-      /* 备份失败时忽略 */
-    }
+    const raw = localStorage.getItem(STORAGE_KEYS.pages)
+    if (raw) backupCorrupted(raw)
     console.error('[visio] 页面存储解析失败,已备份原始数据', error)
     return []
   }
@@ -41,6 +56,8 @@ function loadPages(): PageRecord[] {
 /** 页面列表仓库:localStorage 的唯一访问点,后续接后端仅需改造此文件 */
 export const usePagesStore = defineStore('pages', () => {
   const pages = ref<PageRecord[]>(loadPages())
+  /** 最近一次持久化失败的错误信息;null 表示写入正常,供 UI 提示"保存失败" */
+  const persistError = ref<string | null>(null)
 
   // 其他标签页修改存储时同步列表,缩小多标签互相覆盖的窗口
   if (typeof window !== 'undefined') {
@@ -50,7 +67,14 @@ export const usePagesStore = defineStore('pages', () => {
   }
 
   function persist() {
-    localStorage.setItem(STORAGE_KEYS.pages, JSON.stringify(pages.value))
+    try {
+      localStorage.setItem(STORAGE_KEYS.pages, JSON.stringify(pages.value))
+      persistError.value = null
+    } catch (error) {
+      // 配额超限等写入失败:内存数据保留,暴露错误状态供 UI 提示,避免用户误以为已保存
+      persistError.value = error instanceof Error ? error.message : String(error)
+      console.error('[visio] 页面存储写入失败', error)
+    }
   }
 
   function getPage(id: string): PageRecord | undefined {
@@ -100,7 +124,7 @@ export const usePagesStore = defineStore('pages', () => {
     persist()
   }
 
-  return { pages, persist, getPage, upsert, removePage, createPage, duplicatePage, renamePage }
+  return { pages, persistError, persist, getPage, upsert, removePage, createPage, duplicatePage, renamePage }
 })
 
 if (import.meta.hot) {

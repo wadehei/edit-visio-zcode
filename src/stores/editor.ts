@@ -3,6 +3,7 @@ import { computed, ref } from 'vue'
 
 import type { ComponentSchema, PageSchema } from '@/shared/types'
 import type { PageTheme } from '@/shared/theme'
+import { STORAGE_KEYS } from '@/shared/constants'
 import { isDarkColor } from '@/shared/utils/color'
 import { deepClone } from '@/shared/utils/clone'
 import { createId } from '@/shared/utils/id'
@@ -53,6 +54,8 @@ export const useEditorStore = defineStore('editor', () => {
         return `添加 ${getMaterial(arg)?.name ?? arg}`
       case 'add-tpl':
         return `插入模板 ${getMaterial(arg)?.name ?? arg}`
+      case 'paste':
+        return `粘贴 ${getMaterial(arg)?.name ?? arg}`
       case 'remove':
         return `删除 ${compName(arg)}`
       case 'duplicate':
@@ -199,6 +202,59 @@ export const useEditorStore = defineStore('editor', () => {
     page.value[key] = value
   }
 
+  // ---- 组件剪贴板:localStorage 持久,跨页面(甚至刷新后)可粘贴 ----
+
+  interface ClipPayload {
+    type: string
+    props: Record<string, unknown>
+  }
+
+  function readClipboard(): ClipPayload | null {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEYS.clipboard)
+      if (!raw) return null
+      const parsed = JSON.parse(raw) as Partial<ClipPayload>
+      if (!parsed || typeof parsed.type !== 'string' || !parsed.props) return null
+      return { type: parsed.type, props: parsed.props }
+    } catch {
+      return null
+    }
+  }
+
+  function writeClipboard(comp: ComponentSchema) {
+    try {
+      localStorage.setItem(
+        STORAGE_KEYS.clipboard,
+        JSON.stringify({ type: comp.type, props: comp.props } satisfies ClipPayload),
+      )
+    } catch {
+      /* 剪贴板写入失败不影响编辑流程 */
+    }
+  }
+
+  function copyComponent(id: string) {
+    const comp = page.value.components.find((c) => c.id === id)
+    if (comp) writeClipboard(comp)
+  }
+
+  function cutComponent(id: string) {
+    copyComponent(id)
+    removeComponent(id)
+  }
+
+  /** 粘贴剪贴板组件:深拷贝 props 并生成新 id,插到当前选中项之后(无选中则追加末尾) */
+  function pasteComponent(): string | null {
+    const clip = readClipboard()
+    if (!clip || !getMaterial(clip.type)) return null
+    pushHistory(`paste:${clip.type}`)
+    const comp: ComponentSchema = { id: createId('c'), type: clip.type, props: deepClone(clip.props) }
+    const list = page.value.components
+    const i = selectedId.value ? list.findIndex((c) => c.id === selectedId.value) : -1
+    list.splice(i >= 0 ? i + 1 : list.length, 0, comp)
+    selectedId.value = comp.id
+    return comp.id
+  }
+
   /** 一键换肤:按语义槽位重映射页面与组件配色,整体作为一步历史 */
   function applyTheme(theme: PageTheme) {
     pushHistory('theme')
@@ -283,6 +339,9 @@ export const useEditorStore = defineStore('editor', () => {
     moveComponentDown,
     updateComponentProp,
     updatePageSetting,
+    copyComponent,
+    cutComponent,
+    pasteComponent,
     applyTheme,
     clearComponents,
     undo,

@@ -46,6 +46,20 @@ watch(
   { deep: true },
 )
 
+// 持久化失败(常见于 localStorage 配额超限)必须显式提示,否则用户会误以为已保存
+watch(
+  () => pagesStore.persistError,
+  (msg) => {
+    if (msg) ElMessage.error(`保存失败:${msg}`)
+  },
+)
+
+// 直接关闭/刷新标签页不触发 onBeforeUnmount,用 pagehide 补一次同步落盘
+function onPageHide() {
+  autoSave.cancel()
+  saveNow()
+}
+
 function onKeydown(e: KeyboardEvent) {
   const target = e.target as HTMLElement | null
   const typing =
@@ -67,7 +81,17 @@ function onKeydown(e: KeyboardEvent) {
   } else if ((e.ctrlKey || e.metaKey) && key === 's') {
     e.preventDefault()
     saveNow()
-    ElMessage.success('页面已保存')
+    if (pagesStore.persistError) ElMessage.error('页面保存失败,请检查浏览器存储空间')
+    else ElMessage.success('页面已保存')
+  } else if ((e.ctrlKey || e.metaKey) && key === 'c' && editor.selectedId) {
+    e.preventDefault()
+    editor.copyComponent(editor.selectedId)
+  } else if ((e.ctrlKey || e.metaKey) && key === 'x' && editor.selectedId) {
+    e.preventDefault()
+    editor.cutComponent(editor.selectedId)
+  } else if ((e.ctrlKey || e.metaKey) && key === 'v') {
+    e.preventDefault()
+    if (!editor.pasteComponent()) ElMessage.warning('剪贴板没有可粘贴的组件')
   } else if ((e.ctrlKey || e.metaKey) && key === 'd' && editor.selectedId) {
     e.preventDefault()
     editor.duplicateComponent(editor.selectedId)
@@ -94,11 +118,14 @@ onMounted(() => {
   }
   editor.loadPage(record.schema)
   window.addEventListener('keydown', onKeydown)
+  window.addEventListener('pagehide', onPageHide)
 })
 
 onBeforeUnmount(() => {
+  autoSave.cancel()
   saveNow()
   window.removeEventListener('keydown', onKeydown)
+  window.removeEventListener('pagehide', onPageHide)
 })
 </script>
 

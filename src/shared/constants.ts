@@ -5,6 +5,8 @@ export const CANVAS_WIDTH = 375
 
 export const STORAGE_KEYS = {
   pages: 'visio:pages:v1',
+  /** 组件剪贴板:跨页面复制组件,存单个 { type, props } */
+  clipboard: 'visio:clipboard:v1',
 } as const
 
 export const MATERIAL_GROUPS = ['基础组件', '营销组件'] as const

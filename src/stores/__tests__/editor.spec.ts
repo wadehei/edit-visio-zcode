@@ -16,7 +16,9 @@ vi.mock('@/modules/materials', () => ({
 }))
 
 import { createEmptyPage } from '@/shared/page'
+import { STORAGE_KEYS } from '@/shared/constants'
 import { useEditorStore } from '../editor'
+import { createLocalStorageStub } from './storage-stub'
 
 function makePage() {
   return createEmptyPage('测试页')
@@ -24,6 +26,7 @@ function makePage() {
 
 describe('editor store', () => {
   beforeEach(() => {
+    vi.stubGlobal('localStorage', createLocalStorageStub())
     setActivePinia(createPinia())
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-10-09T12:00:00Z'))
@@ -148,5 +151,83 @@ describe('editor store', () => {
     editor.jumpForward(0) // 重做全部
     expect(editor.page.components).toHaveLength(3)
     expect(editor.future).toHaveLength(0)
+  })
+})
+
+describe('组件剪贴板', () => {
+  beforeEach(() => {
+    vi.stubGlobal('localStorage', createLocalStorageStub())
+    setActivePinia(createPinia())
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-10-09T12:00:00Z'))
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('copy 后 paste 插入当前选中项之后,新 id + 深拷贝 props', () => {
+    const editor = useEditorStore()
+    editor.loadPage(makePage())
+    editor.addComponent('text')
+    const first = editor.page.components[0].id
+    editor.copyComponent(first)
+    editor.addComponent('image')
+
+    editor.pasteComponent()
+    expect(editor.page.components.map((c) => c.type)).toEqual(['text', 'image', 'text'])
+    const pasted = editor.page.components[2]
+    expect(pasted.id).not.toBe(first)
+    expect(pasted.props).toEqual({ seed: 1 })
+    expect(editor.past[editor.past.length - 1]?.label).toBe('粘贴 text')
+    expect(editor.selectedId).toBe(pasted.id)
+  })
+
+  it('无选中时 paste 追加末尾', () => {
+    const editor = useEditorStore()
+    editor.loadPage(makePage())
+    editor.addComponent('text')
+    editor.copyComponent(editor.page.components[0].id)
+    editor.selectComponent(null)
+
+    editor.pasteComponent()
+    expect(editor.page.components.map((c) => c.type)).toEqual(['text', 'text'])
+  })
+
+  it('cut = 复制 + 删除,可撤销且可粘贴恢复', () => {
+    const editor = useEditorStore()
+    editor.loadPage(makePage())
+    editor.addComponent('button')
+    const id = editor.page.components[0].id
+
+    editor.cutComponent(id)
+    expect(editor.page.components).toHaveLength(0)
+    editor.undo()
+    expect(editor.page.components).toHaveLength(1)
+
+    editor.pasteComponent()
+    // undo 恢复的原组件 + 剪贴板粘贴的副本
+    expect(editor.page.components.map((c) => c.type)).toEqual(['button', 'button'])
+  })
+
+  it('剪贴板跨页面可用:loadPage 换页后仍能粘贴', () => {
+    const editor = useEditorStore()
+    editor.loadPage(makePage())
+    editor.addComponent('text')
+    editor.copyComponent(editor.page.components[0].id)
+
+    editor.loadPage(createEmptyPage('另一页'))
+    editor.pasteComponent()
+    expect(editor.page.components.map((c) => c.type)).toEqual(['text'])
+  })
+
+  it('剪贴板为空或损坏时 paste 返回 null 且不改画布', () => {
+    const editor = useEditorStore()
+    editor.loadPage(makePage())
+    expect(editor.pasteComponent()).toBeNull()
+
+    localStorage.setItem(STORAGE_KEYS.clipboard, '{broken!!')
+    expect(editor.pasteComponent()).toBeNull()
+    expect(editor.page.components).toHaveLength(0)
   })
 })

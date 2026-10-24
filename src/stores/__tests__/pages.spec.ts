@@ -16,18 +16,7 @@ vi.mock('@/modules/materials', () => ({
 
 import { STORAGE_KEYS } from '@/shared/constants'
 import { usePagesStore } from '../pages'
-
-/** node 环境下的 localStorage 内存实现 */
-function createLocalStorageStub() {
-  const store = new Map<string, string>()
-  return {
-    getItem: (key: string) => store.get(key) ?? null,
-    setItem: (key: string, value: string) => void store.set(key, value),
-    removeItem: (key: string) => void store.delete(key),
-    clear: () => store.clear(),
-    keys: () => Array.from(store.keys()),
-  }
-}
+import { createLocalStorageStub } from './storage-stub'
 
 describe('pages store', () => {
   beforeEach(() => {
@@ -101,5 +90,37 @@ describe('pages store', () => {
     )
     const pages = usePagesStore()
     expect(pages.pages.map((p) => p.id)).toEqual(['ok'])
+  })
+
+  it('persist 写入失败时设置 persistError 且保留内存数据,成功后清除', () => {
+    const pages = usePagesStore()
+    const record = pages.createPage('blank')
+    expect(pages.persistError).toBeNull()
+
+    const original = localStorage.setItem.bind(localStorage)
+    ;(localStorage as { setItem: unknown }).setItem = () => {
+      throw new Error('quota exceeded')
+    }
+    pages.renamePage(record.id, '触发失败')
+    expect(pages.persistError).toBe('quota exceeded')
+    expect(pages.getPage(record.id)?.name).toBe('触发失败')
+
+    ;(localStorage as { setItem: unknown }).setItem = original
+    pages.renamePage(record.id, '恢复正常')
+    expect(pages.persistError).toBeNull()
+  })
+
+  it('损坏备份超过上限时删除最旧的', () => {
+    localStorage.setItem(`${STORAGE_KEYS.pages}:corrupted:100`, 'oldest')
+    localStorage.setItem(`${STORAGE_KEYS.pages}:corrupted:200`, 'middle')
+    localStorage.setItem(`${STORAGE_KEYS.pages}:corrupted:300`, 'newest')
+    localStorage.setItem(STORAGE_KEYS.pages, '{broken!!')
+    usePagesStore()
+
+    const backups = Object.keys(localStorage)
+      .filter((k) => k.startsWith(`${STORAGE_KEYS.pages}:corrupted:`))
+      .sort()
+    expect(backups).toHaveLength(3)
+    expect(backups).not.toContain(`${STORAGE_KEYS.pages}:corrupted:100`)
   })
 })

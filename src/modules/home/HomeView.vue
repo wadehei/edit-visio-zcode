@@ -206,6 +206,9 @@ function componentSummary(types: string[]): string {
   border-radius: var(--visio-radius-md);
   padding: 16px;
   transition: box-shadow 0.15s;
+  /* 页面多时跳过视口外卡片的渲染(缩略图每张都是完整 PageRenderer) */
+  content-visibility: auto;
+  contain-intrinsic-size: auto 236px;
 }
 
 .page-card:hover {
