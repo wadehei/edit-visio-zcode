@@ -21,6 +21,16 @@ export interface HistoryEntry {
 export const HISTORY_LIMIT = 50
 const COALESCE_MS = 600
 
+/**
+ * 快照采用"结构共享 + 写时复制":页面对象与组件数组为浅拷贝,
+ * 未被修改的组件对象与既有快照共享引用(带大图 dataURL 的页面内存足迹从
+ * O(步数 × 整页) 降为 O(实际变更),实测见 history-cost.spec.ts 与 docs/04 ADR-003)。
+ * 约束:所有组件级修改必须整对象替换,任何对共享组件的原地修改都会腐蚀历史。
+ */
+function makeSnapshot(page: PageSchema): PageSchema {
+  return { ...page, components: [...page.components] }
+}
+
 export const useEditorStore = defineStore('editor', () => {
   const page = ref<PageSchema>(createEmptyPage())
   /** 是否已通过 loadPage 装载真实页面;未装载前禁止任何持久化写入 */
@@ -92,7 +102,7 @@ export const useEditorStore = defineStore('editor', () => {
       lastTime = now
       return
     }
-    past.value.push({ label: resolveLabel(tag), snapshot: deepClone(page.value) })
+    past.value.push({ label: resolveLabel(tag), snapshot: makeSnapshot(page.value) })
     if (past.value.length > HISTORY_LIMIT) past.value.shift()
     future.value.length = 0
     lastTag = tag
@@ -196,20 +206,25 @@ export const useEditorStore = defineStore('editor', () => {
   }
 
   function updateComponentProp(id: string, key: string, value: unknown) {
-    const comp = page.value.components.find((c) => c.id === id)
-    if (!comp) return
+    const i = indexOf(id)
+    if (i < 0) return
     pushHistory(`prop:${id}:${key}`)
-    comp.props = { ...comp.props, [key]: value }
+    // 写时复制:整对象替换,不得原地修改(组件对象可能与历史快照共享)
+    const comp = page.value.components[i]!
+    page.value.components[i] = { ...comp, props: { ...comp.props, [key]: value } }
   }
 
   /** 隐藏/显示组件:渲染与预览跳过隐藏组件,编辑画布保留半透明占位 */
   function toggleComponentHidden(id: string) {
-    const comp = page.value.components.find((c) => c.id === id)
-    if (!comp) return
+    const i = indexOf(id)
+    if (i < 0) return
+    const comp = page.value.components[i]!
     const next = comp.hidden ? undefined : true
     pushHistory(`hide:${id}:${next === true ? 1 : 0}`)
-    if (next) comp.hidden = true
-    else delete comp.hidden
+    const updated = { ...comp }
+    if (next) updated.hidden = true
+    else delete updated.hidden
+    page.value.components[i] = updated
   }
 
   function updatePageSetting(key: 'name' | 'title' | 'backgroundColor', value: string) {
@@ -274,7 +289,8 @@ export const useEditorStore = defineStore('editor', () => {
   function applyTheme(theme: PageTheme) {
     pushHistory('theme')
     page.value.backgroundColor = theme.pageBg
-    for (const comp of page.value.components) {
+    // 写时复制:换肤的组件整对象替换,未涉及的组件保持共享引用
+    page.value.components = page.value.components.map((comp) => {
       const props = { ...comp.props }
       switch (comp.type) {
         case 'notice-bar':
@@ -290,9 +306,11 @@ export const useEditorStore = defineStore('editor', () => {
             props.color = isDarkColor(props.color) ? theme.titleColor : theme.bodyColor
           }
           break
+        default:
+          return comp
       }
-      comp.props = props
-    }
+      return { ...comp, props }
+    })
   }
 
   function clearComponents() {
@@ -305,16 +323,16 @@ export const useEditorStore = defineStore('editor', () => {
   function undo() {
     if (!past.value.length) return
     const entry = past.value.pop()!
-    future.value.push({ label: entry.label, snapshot: deepClone(page.value) })
-    page.value = deepClone(entry.snapshot)
+    future.value.push({ label: entry.label, snapshot: makeSnapshot(page.value) })
+    page.value = makeSnapshot(entry.snapshot)
     lastTag = ''
   }
 
   function redo() {
     if (!future.value.length) return
     const entry = future.value.pop()!
-    past.value.push({ label: entry.label, snapshot: deepClone(page.value) })
-    page.value = deepClone(entry.snapshot)
+    past.value.push({ label: entry.label, snapshot: makeSnapshot(page.value) })
+    page.value = makeSnapshot(entry.snapshot)
     lastTag = ''
   }
 
