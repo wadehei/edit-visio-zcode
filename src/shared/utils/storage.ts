@@ -37,8 +37,14 @@ export function loadJsonCollection<T>(
     if (!Array.isArray(parsed)) throw new Error(`${label} storage is not an array`)
     return parsed.filter(isValid)
   } catch (error) {
-    const raw = localStorage.getItem(key)
-    if (raw) backupCorrupted(key, raw)
+    // 存储被完全禁用(如 Chrome 阻止所有 Cookie)时,任何 localStorage 访问都会抛错,
+    // 这里的兜底读取必须自吞异常,否则应用在 store 初始化时直接白屏
+    try {
+      const raw = localStorage.getItem(key)
+      if (raw) backupCorrupted(key, raw)
+    } catch {
+      /* 存储不可用,忽略 */
+    }
     console.error(`[visio] ${label}存储解析失败,已备份原始数据`, error)
     return []
   }

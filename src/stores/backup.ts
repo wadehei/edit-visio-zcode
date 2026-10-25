@@ -52,14 +52,21 @@ export function parseBackupFile(value: unknown): ParsedBackup | null {
   ) {
     return null
   }
+  const pages = file.pages.filter(isValidRecord).map((r) =>
+    // id 一致性归一:以记录 id 为准,避免 schema.id 错位导致编辑保存时产生重复记录
+    r.schema.id === r.id ? r : { ...r, schema: { ...r.schema, id: r.id } },
+  )
+  const componentTemplates = file.componentTemplates.filter(isValidComponentTemplate)
+  const pageTemplates = file.pageTemplates.filter(isValidPageTemplate)
   return {
-    pages: file.pages.filter(isValidRecord),
-    componentTemplates: file.componentTemplates.filter(isValidComponentTemplate),
-    pageTemplates: file.pageTemplates.filter(isValidPageTemplate),
+    pages,
+    componentTemplates,
+    pageTemplates,
+    // 过滤后的条数:确认框展示用户实际会得到的数据量
     counts: {
-      pages: file.pages.length,
-      componentTemplates: file.componentTemplates.length,
-      pageTemplates: file.pageTemplates.length,
+      pages: pages.length,
+      componentTemplates: componentTemplates.length,
+      pageTemplates: pageTemplates.length,
     },
   }
 }

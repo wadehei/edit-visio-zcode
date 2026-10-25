@@ -41,6 +41,12 @@ function removeTemplate(t: PageTemplate) {
             <PageRenderer :page="t.schema" />
           </div>
           <div v-if="!t.schema.components.length" class="tpl-thumb-empty">空白模板</div>
+          <div
+            v-else-if="t.schema.components.every((c) => c.hidden)"
+            class="tpl-thumb-empty"
+          >
+            组件均已隐藏,预览时为空白
+          </div>
         </div>
         <div class="tpl-info">
           <div class="tpl-name" :title="t.name">{{ t.name }}</div>

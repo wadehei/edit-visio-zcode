@@ -1,4 +1,8 @@
 <script setup lang="ts">
+import { computed } from 'vue'
+
+import { safeLinkUrl } from '@/shared/utils/url'
+
 interface Props {
   text?: string
   link?: string
@@ -9,7 +13,7 @@ interface Props {
   block?: boolean
 }
 
-withDefaults(defineProps<Props>(), {
+const props = withDefaults(defineProps<Props>(), {
   text: '立即购买',
   link: '',
   bgColor: '#4f46e5',
@@ -18,13 +22,17 @@ withDefaults(defineProps<Props>(), {
   radius: 22,
   block: true,
 })
+
+// props 来自用户输入与导入的 JSON,渲染前白名单过滤可执行 scheme(javascript: 等)
+const safeLink = computed(() => safeLinkUrl(props.link))
 </script>
 
 <template>
   <component
-    :is="link ? 'a' : 'div'"
-    :href="link || undefined"
+    :is="safeLink ? 'a' : 'div'"
+    :href="safeLink"
     target="_blank"
+    rel="noopener noreferrer"
     class="button-widget"
     :class="{ 'is-block': block }"
   >

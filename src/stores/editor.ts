@@ -18,7 +18,7 @@ export interface HistoryEntry {
   snapshot: PageSchema
 }
 
-const HISTORY_LIMIT = 50
+export const HISTORY_LIMIT = 50
 const COALESCE_MS = 600
 
 export const useEditorStore = defineStore('editor', () => {

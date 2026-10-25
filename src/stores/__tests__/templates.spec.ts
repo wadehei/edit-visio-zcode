@@ -26,14 +26,14 @@ describe('templates store', () => {
     expect(templates.templates[0].props).toEqual({ images: [{ url: '/a.png' }] })
 
     const stored = JSON.parse(storage.get('visio:templates:v1') ?? '[]')
-    expect(stored[0].id).toBe(saved.id)
+    expect(stored[0].id).toBe(saved!.id)
   })
 
   it('removeTemplate 删除并持久化', () => {
     const templates = useTemplatesStore()
     const a = templates.saveTemplate('A', 'text', {})
     templates.saveTemplate('B', 'image', {})
-    templates.removeTemplate(a.id)
+    templates.removeTemplate(a!.id)
     expect(templates.templates.map((t) => t.name)).toEqual(['B'])
     expect(JSON.parse(storage.get('visio:templates:v1') ?? '[]')).toHaveLength(1)
   })

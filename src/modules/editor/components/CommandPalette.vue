@@ -36,17 +36,23 @@ async function promptSaveTemplate() {
     ElMessage.warning('请先在画布选中一个组件')
     return
   }
+  let name: string
   try {
     const { value } = await ElMessageBox.prompt('给模板起个名字', '存为模板', {
       inputValue: `${getMaterial(comp.type)?.name ?? comp.type} 模板`,
       inputPattern: /\S+/,
       inputErrorMessage: '名称不能为空',
     })
-    templatesStore.saveTemplate(value.trim(), comp.type, comp.props)
-    ElMessage.success('模板已保存')
+    name = value.trim()
   } catch {
-    /* 用户取消 */
+    return // 用户取消
   }
+  const saved = templatesStore.saveTemplate(name, comp.type, comp.props)
+  if (!saved) {
+    ElMessage.error('模板保存失败,请检查浏览器存储空间')
+    return
+  }
+  ElMessage.success('模板已保存')
 }
 
 const query = ref('')
@@ -56,7 +62,8 @@ const inputRef = ref<HTMLInputElement | null>(null)
 function savePage() {
   if (!editor.loaded) return
   pagesStore.upsert(toPageRecord(editor.page))
-  ElMessage.success('页面已保存')
+  if (pagesStore.persistError) ElMessage.error('页面保存失败,请检查浏览器存储空间')
+  else ElMessage.success('页面已保存')
 }
 
 function openPreview() {

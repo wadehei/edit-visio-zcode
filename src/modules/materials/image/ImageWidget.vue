@@ -1,4 +1,8 @@
 <script setup lang="ts">
+import { computed } from 'vue'
+
+import { safeImageUrl, safeLinkUrl } from '@/shared/utils/url'
+
 interface Props {
   src?: string
   link?: string
@@ -7,20 +11,25 @@ interface Props {
   radius?: number
 }
 
-withDefaults(defineProps<Props>(), {
+const props = withDefaults(defineProps<Props>(), {
   src: '',
   link: '',
   height: 0,
   fit: 'cover',
   radius: 0,
 })
+
+// props 来自用户输入与导入的 JSON,渲染前白名单过滤可执行 scheme(javascript: 等)
+const safeLink = computed(() => safeLinkUrl(props.link))
+const safeSrc = computed(() => safeImageUrl(props.src))
 </script>
 
 <template>
   <component
-    :is="link ? 'a' : 'div'"
-    :href="link || undefined"
+    :is="safeLink ? 'a' : 'div'"
+    :href="safeLink"
     target="_blank"
+    rel="noopener noreferrer"
     class="image-widget"
     :style="{
       borderRadius: `${radius}px`,
@@ -30,8 +39,8 @@ withDefaults(defineProps<Props>(), {
     }"
   >
     <img
-      v-if="src"
-      :src="src"
+      v-if="safeSrc"
+      :src="safeSrc"
       alt=""
       :style="{ objectFit: fit, width: '100%', height: '100%' }"
       draggable="false"

@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 
+import { safeImageUrl, safeLinkUrl } from '@/shared/utils/url'
+
 interface Props {
   cols?: number
   rows?: number
@@ -38,12 +40,13 @@ const gridStyle = computed(() => ({
         :style="{ height: `${height}px`, borderRadius: '8px', overflow: 'hidden' }"
       >
         <a
-          :href="cell.link || undefined"
+          :href="safeLinkUrl(cell.link)"
           target="_blank"
+          rel="noopener noreferrer"
           class="cell-link"
           draggable="false"
         >
-          <img v-if="cell.image" :src="cell.image" alt="" draggable="false" />
+          <img v-if="safeImageUrl(cell.image)" :src="safeImageUrl(cell.image)" alt="" draggable="false" />
           <div v-else class="cell-placeholder">格子 {{ i + 1 }}</div>
         </a>
       </div>

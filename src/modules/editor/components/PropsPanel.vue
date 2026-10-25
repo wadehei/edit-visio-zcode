@@ -42,17 +42,23 @@ async function saveAsTemplate() {
   const comp = editor.selectedComponent
   if (!comp) return
   const def = getMaterial(comp.type)
+  let name: string
   try {
     const { value } = await ElMessageBox.prompt('给模板起个名字', '存为模板', {
       inputValue: `${def?.name ?? comp.type} 模板`,
       inputPattern: /\S+/,
       inputErrorMessage: '名称不能为空',
     })
-    templatesStore.saveTemplate(value.trim(), comp.type, comp.props)
-    ElMessage.success('模板已保存,可在左侧「模板」页签中使用')
+    name = value.trim()
   } catch {
-    /* 用户取消 */
+    return // 用户取消
   }
+  const saved = templatesStore.saveTemplate(name, comp.type, comp.props)
+  if (!saved) {
+    ElMessage.error('模板保存失败,请检查浏览器存储空间')
+    return
+  }
+  ElMessage.success('模板已保存,可在左侧「模板」页签中使用')
 }
 </script>
 

@@ -33,13 +33,28 @@ function loadTemplates(): PageTemplate[] {
 /** 页面模板仓库:整页另存为模板、从模板新建页面 */
 export const usePageTemplatesStore = defineStore('pageTemplates', () => {
   const templates = ref<PageTemplate[]>(loadTemplates())
+  /** 最近一次持久化失败的错误信息;null 表示写入正常 */
+  const persistError = ref<string | null>(null)
 
-  function persist() {
-    localStorage.setItem(STORAGE_KEYS.pageTemplates, JSON.stringify(templates.value))
+  // 其他标签页修改存储时同步列表,缩小多标签互相覆盖的窗口
+  if (typeof window !== 'undefined') {
+    window.addEventListener('storage', (e) => {
+      if (e.key === STORAGE_KEYS.pageTemplates) templates.value = loadTemplates()
+    })
   }
 
-  /** 保存页面模板:schema 深拷贝,与原页面脱钩 */
-  function savePageTemplate(name: string, schema: PageSchema): PageTemplate {
+  function persist() {
+    try {
+      localStorage.setItem(STORAGE_KEYS.pageTemplates, JSON.stringify(templates.value))
+      persistError.value = null
+    } catch (error) {
+      persistError.value = error instanceof Error ? error.message : String(error)
+      console.error('[visio] 页面模板存储写入失败', error)
+    }
+  }
+
+  /** 保存页面模板:schema 深拷贝,与原页面脱钩;持久化失败返回 null */
+  function savePageTemplate(name: string, schema: PageSchema): PageTemplate | null {
     const template: PageTemplate = {
       id: createId('pt'),
       name,
@@ -48,7 +63,7 @@ export const usePageTemplatesStore = defineStore('pageTemplates', () => {
     }
     templates.value.unshift(template)
     persist()
-    return template
+    return persistError.value ? null : template
   }
 
   function removePageTemplate(id: string) {
@@ -64,7 +79,7 @@ export const usePageTemplatesStore = defineStore('pageTemplates', () => {
     persist()
   }
 
-  return { templates, savePageTemplate, removePageTemplate, replaceAll }
+  return { templates, persistError, savePageTemplate, removePageTemplate, replaceAll }
 })
 
 if (import.meta.hot) {

@@ -6,6 +6,10 @@ import Components from 'unplugin-vue-components/vite'
 import { ElementPlusResolver } from 'unplugin-vue-components/resolvers'
 
 export default defineConfig({
+  // Vitest:只收集 src 下的单测,排除 Playwright 的 e2e/ 目录
+  test: {
+    include: ['src/**/*.spec.ts'],
+  },
   plugins: [
     vue(),
     // Element Plus 按需引入:模板中的 el-* 组件与样式自动注入,替代全量 app.use(ElementPlus)

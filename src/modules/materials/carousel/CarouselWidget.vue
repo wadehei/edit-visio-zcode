@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
+import { safeImageUrl, safeLinkUrl } from '@/shared/utils/url'
+
 interface CarouselImage {
   url?: string
   link?: string
@@ -63,12 +65,13 @@ onBeforeUnmount(stop)
         :style="{ width: `${100 / count}%`, height: `${height}px` }"
       >
         <a
-          :href="img.link || undefined"
+          :href="safeLinkUrl(img.link)"
           target="_blank"
+          rel="noopener noreferrer"
           class="slide-link"
           draggable="false"
         >
-          <img v-if="img.url" :src="img.url" alt="" draggable="false" />
+          <img v-if="safeImageUrl(img.url)" :src="safeImageUrl(img.url)" alt="" draggable="false" />
           <div v-else class="slide-placeholder">轮播图 {{ i + 1 }}</div>
         </a>
       </div>

@@ -54,11 +54,12 @@ export const usePagesStore = defineStore('pages', () => {
     return pages.value.find((p) => p.id === id)
   }
 
-  function upsert(record: PageRecord) {
+  function upsert(record: PageRecord): PageRecord {
     const i = pages.value.findIndex((p) => p.id === record.id)
     if (i >= 0) pages.value.splice(i, 1)
     pages.value.unshift(record)
     persist()
+    return record
   }
 
   function removePage(id: string) {

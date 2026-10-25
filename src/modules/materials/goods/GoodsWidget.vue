@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { safeImageUrl, safeLinkUrl } from '@/shared/utils/url'
+
 interface GoodsItem {
   title?: string
   price?: string
@@ -25,14 +27,15 @@ withDefaults(defineProps<Props>(), {
       <a
         v-for="(item, i) in items"
         :key="i"
-        :href="item.link || undefined"
+        :href="safeLinkUrl(item.link)"
         target="_blank"
+        rel="noopener noreferrer"
         class="goods-card-link"
         draggable="false"
       >
         <div class="goods-card">
         <div class="goods-pic">
-          <img v-if="item.image" :src="item.image" alt="" draggable="false" />
+          <img v-if="safeImageUrl(item.image)" :src="safeImageUrl(item.image)" alt="" draggable="false" />
           <div v-else class="goods-pic-placeholder">商品图</div>
           <span v-if="item.tag" class="goods-tag">{{ item.tag }}</span>
         </div>

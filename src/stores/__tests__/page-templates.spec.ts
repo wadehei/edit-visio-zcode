@@ -30,17 +30,17 @@ describe('page-templates store', () => {
 
     const stored = JSON.parse(localStorage.getItem(STORAGE_KEYS.pageTemplates) ?? '[]')
     expect(stored).toHaveLength(1)
-    expect(stored[0].id).toBe(a.id)
+    expect(stored[0].id).toBe(a!.id)
 
     const b = store.savePageTemplate('模板 B', makeSchema())
     expect(store.templates.map((t) => t.name)).toEqual(['模板 B', '模板 A'])
-    expect(b.id).not.toBe(a.id)
+    expect(b!.id).not.toBe(a!.id)
   })
 
   it('删除模板并持久化', () => {
     const store = usePageTemplatesStore()
     const t = store.savePageTemplate('待删除', makeSchema())
-    store.removePageTemplate(t.id)
+    store.removePageTemplate(t!.id)
     expect(store.templates).toHaveLength(0)
     expect(JSON.parse(localStorage.getItem(STORAGE_KEYS.pageTemplates) ?? '[]')).toHaveLength(0)
   })

@@ -3,6 +3,7 @@ import { ref } from 'vue'
 import { Clock, ZoomIn, ZoomOut } from '@element-plus/icons-vue'
 
 import { useEditorStore } from '@/stores/editor'
+import { calcVerticalDropIndex } from '../drop-target'
 import EditableWrapper from './EditableWrapper.vue'
 import HistoryTimeline from './HistoryTimeline.vue'
 
@@ -52,12 +53,10 @@ function stopAutoScroll() {
 function calcDropIndex(clientY: number): number {
   const container = containerRef.value
   if (!container) return editor.page.components.length
-  const items = Array.from(container.querySelectorAll<HTMLElement>('[data-edit-item]'))
-  for (let i = 0; i < items.length; i++) {
-    const rect = items[i].getBoundingClientRect()
-    if (clientY < rect.top + rect.height / 2) return i
-  }
-  return items.length
+  const rects = Array.from(container.querySelectorAll<HTMLElement>('[data-edit-item]')).map((el) =>
+    el.getBoundingClientRect(),
+  )
+  return calcVerticalDropIndex(clientY, rects)
 }
 
 function onDragOver(e: DragEvent) {

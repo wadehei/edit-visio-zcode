@@ -25,11 +25,16 @@ const templatesStore = useTemplatesStore()
 const pageTemplateDialogVisible = ref(false)
 const backupInputRef = ref<HTMLInputElement | null>(null)
 
-const usagePercent = computed(() =>
-  Math.min(100, Math.round((pagesStore.usageBytes / STORAGE_QUOTA) * 100)),
+// 存储占用口径 = 页面 + 组件模板 + 页面模板(三者共享同一 5MB 配额)
+const usageBytes = computed(
+  () =>
+    pagesStore.usageBytes +
+    JSON.stringify(templatesStore.templates).length +
+    JSON.stringify(pageTemplatesStore.templates).length,
 )
+const usagePercent = computed(() => Math.min(100, Math.round((usageBytes.value / STORAGE_QUOTA) * 100)))
 const usageLabel = computed(() => {
-  const bytes = pagesStore.usageBytes
+  const bytes = usageBytes.value
   return bytes >= 1024 * 1024
     ? `${(bytes / 1024 / 1024).toFixed(1)} MB`
     : `${Math.max(1, Math.round(bytes / 1024))} KB`
@@ -100,6 +105,16 @@ async function onBackupFile(e: Event) {
   pagesStore.replaceAll(parsed.pages)
   templatesStore.replaceAll(parsed.componentTemplates)
   pageTemplatesStore.replaceAll(parsed.pageTemplates)
+  // 三个集合必须都写入成功;部分失败时如实告知,避免"导入成功"的假象
+  const failures = [
+    ['页面', pagesStore.persistError],
+    ['组件模板', templatesStore.persistError],
+    ['页面模板', pageTemplatesStore.persistError],
+  ].filter(([, err]) => !!err)
+  if (failures.length) {
+    ElMessage.error(`备份导入未完成(写入失败:${failures.map(([n]) => n).join('、')}),请清理存储空间后重试`)
+    return
+  }
   ElMessage.success('备份已导入')
 }
 
