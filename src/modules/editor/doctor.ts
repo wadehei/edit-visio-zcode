@@ -33,6 +33,19 @@ export function inspectPage(page: PageSchema): PageIssue[] {
     issues.push({ level: 'warning', message: '画布还没有任何组件,先从左侧添加物料吧' })
   }
 
+  const visible = page.components.filter((c) => !c.hidden)
+  if (page.components.length && !visible.length) {
+    issues.push({
+      level: 'warning',
+      message: '所有组件都已隐藏,预览/发布时页面会是空白',
+    })
+  } else if (visible.length < page.components.length) {
+    issues.push({
+      level: 'info',
+      message: `有 ${page.components.length - visible.length} 个组件处于隐藏状态,预览/发布时不显示`,
+    })
+  }
+
   for (const comp of page.components) {
     const p = comp.props
     switch (comp.type) {

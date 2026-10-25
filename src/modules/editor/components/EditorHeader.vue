@@ -10,6 +10,7 @@ import {
   Fold,
   Expand,
   MagicStick,
+  QuestionFilled,
   RefreshLeft,
   RefreshRight,
   View,
@@ -21,10 +22,12 @@ import { downloadJson, readJsonFile } from '@/shared/utils/download'
 import { formatDateTime } from '@/shared/utils/format'
 import { useEditorStore } from '@/stores/editor'
 import { usePagesStore } from '@/stores/pages'
+import { usePageTemplateSave } from '../composables/usePageTemplateSave'
 
 const router = useRouter()
 const editor = useEditorStore()
 const pagesStore = usePagesStore()
+const saveAsPageTemplate = usePageTemplateSave()
 const fileInputRef = ref<HTMLInputElement | null>(null)
 
 const emit = defineEmits<{
@@ -32,11 +35,15 @@ const emit = defineEmits<{
   (e: 'toggle-right'): void
   (e: 'open-doctor'): void
   (e: 'open-palette'): void
+  (e: 'open-shortcuts'): void
+  (e: 'save'): void
 }>()
 
 defineProps<{
   leftCollapsed: boolean
   rightCollapsed: boolean
+  /** dirty = 有改动尚未落盘,由编辑器视图根据自动保存状态传入 */
+  saveState: 'saved' | 'dirty'
 }>()
 
 const pageName = computed({
@@ -49,18 +56,14 @@ const lastSavedText = computed(() => {
   return record ? formatDateTime(record.updatedAt) : '尚未保存'
 })
 
-function saveNow() {
-  if (!editor.loaded) return
-  pagesStore.upsert(toPageRecord(editor.page))
-  ElMessage.success('页面已保存')
-}
-
 function onCommand(cmd: string | number | object) {
   const c = String(cmd)
   if (c === 'export') {
     downloadJson(`${editor.page.name || 'page'}.json`, editor.page)
   } else if (c === 'import') {
     fileInputRef.value?.click()
+  } else if (c === 'save-template') {
+    void saveAsPageTemplate()
   } else if (c === 'clear') {
     void clearCanvas()
   }
@@ -142,6 +145,7 @@ async function onImportFile(e: Event) {
           <el-dropdown-menu>
             <el-dropdown-item command="export">导出 JSON</el-dropdown-item>
             <el-dropdown-item command="import">导入 JSON</el-dropdown-item>
+            <el-dropdown-item command="save-template">保存为页面模板</el-dropdown-item>
             <el-dropdown-item command="clear" divided>清空画布</el-dropdown-item>
           </el-dropdown-menu>
         </template>
@@ -151,11 +155,23 @@ async function onImportFile(e: Event) {
         <el-button :icon="View" size="small">预览</el-button>
       </router-link>
 
-      <span class="save-status" title="内容变更后 600ms 自动保存到本地">已自动保存 {{ lastSavedText }}</span>
+      <span
+        class="save-status"
+        :class="{ dirty: saveState === 'dirty' }"
+        title="内容变更后 600ms 自动保存到本地"
+      >
+        {{ saveState === 'dirty' ? '有未保存的修改' : `已自动保存 ${lastSavedText}` }}
+      </span>
 
       <el-tooltip content="命令面板 Ctrl+K" placement="bottom">
         <span class="header-btn-wrap">
           <el-button :icon="MagicStick" circle size="small" @click="emit('open-palette')" />
+        </span>
+      </el-tooltip>
+
+      <el-tooltip content="快捷键帮助 ?" placement="bottom">
+        <span class="header-btn-wrap">
+          <el-button :icon="QuestionFilled" circle size="small" @click="emit('open-shortcuts')" />
         </span>
       </el-tooltip>
 
@@ -176,7 +192,7 @@ async function onImportFile(e: Event) {
         </span>
       </el-tooltip>
 
-      <el-button type="primary" size="small" :icon="Check" @click="saveNow">保存</el-button>
+      <el-button type="primary" size="small" :icon="Check" @click="emit('save')">保存</el-button>
 
       <input
         ref="fileInputRef"
@@ -225,6 +241,11 @@ async function onImportFile(e: Event) {
   font-size: 12px;
   color: var(--visio-text-disabled);
   white-space: nowrap;
+}
+
+.save-status.dirty {
+  color: var(--visio-color-warning);
+  font-weight: 600;
 }
 
 .hidden-file {

@@ -11,10 +11,11 @@ interface RenderItem {
 
 const props = defineProps<{ page: PageSchema }>()
 
-/** 未知物料直接跳过,保证脏数据不导致渲染崩溃 */
+/** 未知物料直接跳过,保证脏数据不导致渲染崩溃;隐藏组件仅在编辑画布可见 */
 const renderItems = computed<RenderItem[]>(() => {
   const out: RenderItem[] = []
   for (const comp of props.page.components) {
+    if (comp.hidden) continue
     const def = getMaterial(comp.type)
     if (def) out.push({ comp, def })
   }

@@ -70,4 +70,17 @@ describe('inspectPage', () => {
     )
     expect(issues.every((i) => i.level === 'info')).toBe(true)
   })
+
+  it('部分隐藏组件给出 info 提示,全部隐藏升级为 warning', () => {
+    const partial = inspectPage(
+      pageWith([
+        { id: 'c1', type: 'text', props: { content: '正式文案' } },
+        { id: 'c2', type: 'image', props: { src: '/a.png' }, hidden: true },
+      ]),
+    )
+    expect(partial.some((i) => i.level === 'info' && i.message.includes('1 个组件处于隐藏'))).toBe(true)
+
+    const all = inspectPage(pageWith([{ id: 'c1', type: 'image', props: { src: '/a.png' }, hidden: true }]))
+    expect(all.some((i) => i.level === 'warning' && i.message.includes('页面会是空白'))).toBe(true)
+  })
 })

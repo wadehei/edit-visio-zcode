@@ -7,7 +7,14 @@ export const STORAGE_KEYS = {
   pages: 'visio:pages:v1',
   /** 组件剪贴板:跨页面复制组件,存单个 { type, props } */
   clipboard: 'visio:clipboard:v1',
+  /** 组件级模板 */
+  templates: 'visio:templates:v1',
+  /** 页面级模板:整页另存为模板,从模板新建页面 */
+  pageTemplates: 'visio:page-templates:v1',
 } as const
+
+/** localStorage 配额估算(主流浏览器约 5MB,按 UTF-16 码元计),供首页用量提示 */
+export const STORAGE_QUOTA = 5 * 1024 * 1024
 
 export const MATERIAL_GROUPS = ['基础组件', '营销组件'] as const
 

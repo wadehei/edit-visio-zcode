@@ -62,6 +62,8 @@ export interface ComponentSchema {
   id: string
   type: string
   props: Record<string, unknown>
+  /** 隐藏后画布编辑可见(图层半透明),渲染/预览/导出缩略图跳过;旧数据无此字段视为显示 */
+  hidden?: boolean
 }
 
 /** 页面 Schema:渲染的唯一数据源,必须 JSON 可序列化 */

@@ -110,6 +110,14 @@ describe('pages store', () => {
     expect(pages.persistError).toBeNull()
   })
 
+  it('usageBytes 反映页面存储占用,与 JSON 长度同口径', () => {
+    const pages = usePagesStore()
+    expect(pages.usageBytes).toBe(JSON.stringify([]).length)
+    pages.createPage('demo')
+    expect(pages.usageBytes).toBe(JSON.stringify(pages.pages).length)
+    expect(pages.usageBytes).toBeGreaterThan(JSON.stringify([]).length)
+  })
+
   it('损坏备份超过上限时删除最旧的', () => {
     localStorage.setItem(`${STORAGE_KEYS.pages}:corrupted:100`, 'oldest')
     localStorage.setItem(`${STORAGE_KEYS.pages}:corrupted:200`, 'middle')

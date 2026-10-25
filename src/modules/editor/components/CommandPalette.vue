@@ -9,6 +9,7 @@ import { toPageRecord } from '@/shared/page'
 import { useEditorStore } from '@/stores/editor'
 import { usePagesStore } from '@/stores/pages'
 import { useTemplatesStore } from '@/stores/templates'
+import { usePageTemplateSave } from '../composables/usePageTemplateSave'
 
 interface CommandItem {
   key: string
@@ -20,11 +21,13 @@ interface CommandItem {
 const visible = defineModel<boolean>({ required: true })
 const emit = defineEmits<{
   (e: 'open-doctor'): void
+  (e: 'open-shortcuts'): void
 }>()
 
 const editor = useEditorStore()
 const pagesStore = usePagesStore()
 const templatesStore = useTemplatesStore()
+const saveAsPageTemplate = usePageTemplateSave()
 const router = useRouter()
 
 async function promptSaveTemplate() {
@@ -83,10 +86,22 @@ const allCommands = computed<CommandItem[]>(() => [
     run: () => void promptSaveTemplate(),
   },
   {
+    key: 'save-page-template',
+    label: '保存为页面模板(整页)',
+    group: '操作',
+    run: () => void saveAsPageTemplate(),
+  },
+  {
     key: 'doctor',
     label: '页面体检',
     group: '操作',
     run: () => emit('open-doctor'),
+  },
+  {
+    key: 'shortcuts',
+    label: '快捷键帮助',
+    group: '操作',
+    run: () => emit('open-shortcuts'),
   },
   { key: 'undo', label: '撤销', group: '操作', run: () => editor.undo() },
   { key: 'redo', label: '重做', group: '操作', run: () => editor.redo() },

@@ -124,6 +124,26 @@ describe('editor store', () => {
     expect(editor.selectedId).toBeNull()
   })
 
+  it('toggleComponentHidden 切换隐藏并可撤销,历史标签区分方向', () => {
+    const editor = useEditorStore()
+    editor.loadPage(makePage())
+    editor.addComponent('text')
+    const id = editor.page.components[0].id
+
+    editor.toggleComponentHidden(id)
+    expect(editor.page.components[0].hidden).toBe(true)
+    expect(editor.past[editor.past.length - 1]?.label).toBe('隐藏 text')
+
+    editor.toggleComponentHidden(id)
+    expect(editor.page.components[0].hidden).toBeUndefined()
+    expect(editor.past[editor.past.length - 1]?.label).toBe('显示 text')
+
+    editor.undo()
+    expect(editor.page.components[0].hidden).toBe(true)
+    editor.undo()
+    expect(editor.page.components[0].hidden).toBeUndefined()
+  })
+
   it('历史条目携带可读标签', () => {
     const editor = useEditorStore()
     editor.loadPage(makePage())

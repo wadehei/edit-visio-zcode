@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { ArrowDown, ArrowUp, Delete } from '@element-plus/icons-vue'
+import { ArrowDown, ArrowUp, Delete, Hide, View } from '@element-plus/icons-vue'
 
 import { MATERIAL_GROUPS } from '@/shared/constants'
 import type { MaterialDefinition, MaterialGroup } from '@/shared/types'
@@ -147,7 +147,7 @@ function onDragStart(m: MaterialDefinition, e: DragEvent) {
           <div
             class="layer-item"
             :data-layer-item="comp.id"
-            :class="{ selected: editor.selectedId === comp.id }"
+            :class="{ selected: editor.selectedId === comp.id, hidden: comp.hidden }"
             draggable="true"
             title="拖拽调整顺序,点击选中"
             @dragstart="draggingLayerId = comp.id"
@@ -160,6 +160,14 @@ function onDragStart(m: MaterialDefinition, e: DragEvent) {
               {{ i + 1 }}. {{ getMaterial(comp.type)?.name ?? comp.type }}
             </span>
             <span class="layer-actions" @click.stop>
+              <el-icon
+                class="la"
+                :title="comp.hidden ? '显示' : '隐藏'"
+                @click="editor.toggleComponentHidden(comp.id)"
+              >
+                <Hide v-if="comp.hidden" />
+                <View v-else />
+              </el-icon>
               <el-icon class="la" @click="editor.moveComponentUp(comp.id)"><ArrowUp /></el-icon>
               <el-icon class="la" @click="editor.moveComponentDown(comp.id)"><ArrowDown /></el-icon>
               <el-icon class="la danger" @click="editor.removeComponent(comp.id)"><Delete /></el-icon>
@@ -279,6 +287,11 @@ function onDragStart(m: MaterialDefinition, e: DragEvent) {
 .layer-item.selected {
   background: var(--visio-color-primary-light);
   border-color: var(--visio-color-primary);
+}
+
+.layer-item.hidden .layer-name {
+  color: var(--visio-text-disabled);
+  text-decoration: line-through;
 }
 
 .layer-name {

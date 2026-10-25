@@ -4,7 +4,7 @@ import { computed } from 'vue'
 import type { ComponentSchema } from '@/shared/types'
 import { getMaterial } from '@/modules/materials'
 import { useEditorStore } from '@/stores/editor'
-import { ArrowDown, ArrowUp, CopyDocument, Delete } from '@element-plus/icons-vue'
+import { ArrowDown, ArrowUp, CopyDocument, Delete, Hide, View } from '@element-plus/icons-vue'
 
 const props = defineProps<{ comp: ComponentSchema }>()
 const editor = useEditorStore()
@@ -31,7 +31,7 @@ function onDragEnd() {
 <template>
   <div
     class="editable-wrapper"
-    :class="{ selected }"
+    :class="{ selected, hidden: !!comp.hidden }"
     :data-edit-item="comp.id"
     draggable="true"
     @click.capture.prevent
@@ -45,6 +45,13 @@ function onDragEnd() {
     <div v-if="selected" class="wrapper-tag">{{ def?.name ?? comp.type }}</div>
 
     <div v-if="selected" class="wrapper-actions" @click.stop>
+      <button
+        class="wa-btn"
+        :title="comp.hidden ? '显示' : '隐藏'"
+        @click="editor.toggleComponentHidden(comp.id)"
+      >
+        <el-icon :size="13"><Hide v-if="comp.hidden" /><View v-else /></el-icon>
+      </button>
       <button class="wa-btn" title="上移" @click="editor.moveComponentUp(comp.id)">
         <el-icon :size="13"><ArrowUp /></el-icon>
       </button>
@@ -75,6 +82,12 @@ function onDragEnd() {
 .editable-wrapper.selected {
   outline: 2px solid var(--visio-color-primary);
   outline-offset: -2px;
+}
+
+.editable-wrapper.hidden {
+  opacity: 0.35;
+  outline: 1px dashed #94a3b8;
+  outline-offset: -1px;
 }
 
 .unknown-material {

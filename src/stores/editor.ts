@@ -62,6 +62,11 @@ export const useEditorStore = defineStore('editor', () => {
         return `复制 ${compName(arg)}`
       case 'move':
         return `移动 ${compName(arg)}`
+      case 'hide': {
+        // hide:<id>:<0|1>,目标状态在变更前查询不到,随 tag 一起记录
+        const [id, next] = rest
+        return `${next === '1' ? '隐藏' : '显示'} ${compName(id)}`
+      }
       case 'prop': {
         const [id, key] = rest
         return `修改 ${compName(id)} · ${key}`
@@ -195,6 +200,16 @@ export const useEditorStore = defineStore('editor', () => {
     if (!comp) return
     pushHistory(`prop:${id}:${key}`)
     comp.props = { ...comp.props, [key]: value }
+  }
+
+  /** 隐藏/显示组件:渲染与预览跳过隐藏组件,编辑画布保留半透明占位 */
+  function toggleComponentHidden(id: string) {
+    const comp = page.value.components.find((c) => c.id === id)
+    if (!comp) return
+    const next = comp.hidden ? undefined : true
+    pushHistory(`hide:${id}:${next === true ? 1 : 0}`)
+    if (next) comp.hidden = true
+    else delete comp.hidden
   }
 
   function updatePageSetting(key: 'name' | 'title' | 'backgroundColor', value: string) {
@@ -338,6 +353,7 @@ export const useEditorStore = defineStore('editor', () => {
     moveComponentUp,
     moveComponentDown,
     updateComponentProp,
+    toggleComponentHidden,
     updatePageSetting,
     copyComponent,
     cutComponent,

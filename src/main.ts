@@ -1,9 +1,10 @@
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
-import ElementPlus from 'element-plus'
-import zhCn from 'element-plus/es/locale/lang/zh-cn'
 import * as ElementPlusIconsVue from '@element-plus/icons-vue'
-import 'element-plus/dist/index.css'
+
+// 命令式 API(手动 import,不走 unplugin resolver)需要显式引入样式
+import 'element-plus/es/components/message/style/css'
+import 'element-plus/es/components/message-box/style/css'
 
 import App from './App.vue'
 import router from './router'
@@ -14,8 +15,8 @@ const app = createApp(App)
 
 app.use(createPinia())
 app.use(router)
-app.use(ElementPlus, { locale: zhCn })
 
+// 图标在模板中以字符串名动态解析(物料 icon 字段),需全量注册
 for (const [name, component] of Object.entries(ElementPlusIconsVue)) {
   app.component(name, component)
 }

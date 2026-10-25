@@ -13,6 +13,7 @@ import CanvasArea from './components/CanvasArea.vue'
 import PropsPanel from './components/PropsPanel.vue'
 import PageDoctorDialog from './components/PageDoctorDialog.vue'
 import CommandPalette from './components/CommandPalette.vue'
+import ShortcutsDialog from './components/ShortcutsDialog.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -23,13 +24,24 @@ const leftCollapsed = ref(false)
 const rightCollapsed = ref(false)
 const doctorVisible = ref(false)
 const paletteVisible = ref(false)
+const shortcutsVisible = ref(false)
 
 let suppressAutoSave = true
+/** 落盘状态:编辑产生改动置 dirty,保存成功置 saved,驱动头部状态显示 */
+const saveState = ref<'saved' | 'dirty'>('saved')
 
 /** 仅在真实页面装载完成后才允许写存储,防止 HMR/重挂载竞态写入初始空页 */
 function saveNow() {
   if (!editor.loaded) return
   pagesStore.upsert(toPageRecord(editor.page))
+  saveState.value = 'saved'
+}
+
+/** 手动保存(Ctrl+S / 头部按钮):立即落盘并按结果提示 */
+function onManualSave() {
+  saveNow()
+  if (pagesStore.persistError) ElMessage.error('页面保存失败,请检查浏览器存储空间')
+  else ElMessage.success('页面已保存')
 }
 
 const autoSave = debounce(saveNow, 600)
@@ -41,6 +53,7 @@ watch(
       suppressAutoSave = false
       return
     }
+    saveState.value = 'dirty'
     autoSave()
   },
   { deep: true },
@@ -80,9 +93,7 @@ function onKeydown(e: KeyboardEvent) {
     editor.redo()
   } else if ((e.ctrlKey || e.metaKey) && key === 's') {
     e.preventDefault()
-    saveNow()
-    if (pagesStore.persistError) ElMessage.error('页面保存失败,请检查浏览器存储空间')
-    else ElMessage.success('页面已保存')
+    onManualSave()
   } else if ((e.ctrlKey || e.metaKey) && key === 'c' && editor.selectedId) {
     e.preventDefault()
     editor.copyComponent(editor.selectedId)
@@ -97,6 +108,9 @@ function onKeydown(e: KeyboardEvent) {
     editor.duplicateComponent(editor.selectedId)
   } else if (e.key === 'Escape') {
     editor.selectComponent(null)
+  } else if (e.key === '?' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+    e.preventDefault()
+    shortcutsVisible.value = true
   } else if (e.altKey && e.key === 'ArrowUp' && editor.selectedId) {
     e.preventDefault()
     editor.moveComponentUp(editor.selectedId)
@@ -134,10 +148,13 @@ onBeforeUnmount(() => {
     <EditorHeader
       :left-collapsed="leftCollapsed"
       :right-collapsed="rightCollapsed"
+      :save-state="saveState"
       @toggle-left="leftCollapsed = !leftCollapsed"
       @toggle-right="rightCollapsed = !rightCollapsed"
       @open-doctor="doctorVisible = true"
       @open-palette="paletteVisible = true"
+      @open-shortcuts="shortcutsVisible = true"
+      @save="onManualSave"
     />
     <div class="editor-body">
       <MaterialPalette v-show="!leftCollapsed" />
@@ -145,7 +162,12 @@ onBeforeUnmount(() => {
       <PropsPanel v-show="!rightCollapsed" />
     </div>
     <PageDoctorDialog v-model="doctorVisible" />
-    <CommandPalette v-model="paletteVisible" @open-doctor="doctorVisible = true" />
+    <CommandPalette
+      v-model="paletteVisible"
+      @open-doctor="doctorVisible = true"
+      @open-shortcuts="shortcutsVisible = true"
+    />
+    <ShortcutsDialog v-model="shortcutsVisible" />
   </div>
 </template>
 

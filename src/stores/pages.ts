@@ -1,13 +1,15 @@
 import { defineStore, acceptHMRUpdate } from 'pinia'
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 
 import type { PageRecord } from '@/shared/types'
 import { STORAGE_KEYS } from '@/shared/constants'
 import { createDemoPage, createEmptyPage, toPageRecord } from '@/shared/page'
 import { deepClone } from '@/shared/utils/clone'
 import { createId } from '@/shared/utils/id'
+import { loadJsonCollection } from '@/shared/utils/storage'
 
-function isValidRecord(value: unknown): value is PageRecord {
+/** 页面记录合法性校验(备份导入复用) */
+export function isValidRecord(value: unknown): value is PageRecord {
   const record = value as PageRecord | null
   return (
     !!record &&
@@ -18,39 +20,8 @@ function isValidRecord(value: unknown): value is PageRecord {
   )
 }
 
-/** 损坏备份最多保留份数,超出删最旧,防止解析失败反复发生时撑爆存储 */
-const CORRUPTED_BACKUP_LIMIT = 3
-
-function backupCorrupted(raw: string) {
-  const prefix = `${STORAGE_KEYS.pages}:corrupted:`
-  try {
-    const keys = Object.keys(localStorage)
-      .filter((k) => k.startsWith(prefix))
-      .sort()
-    while (keys.length >= CORRUPTED_BACKUP_LIMIT) {
-      const oldest = keys.shift()
-      if (oldest) localStorage.removeItem(oldest)
-    }
-    localStorage.setItem(`${prefix}${Date.now()}`, raw)
-  } catch {
-    /* 备份失败时忽略 */
-  }
-}
-
 function loadPages(): PageRecord[] {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEYS.pages)
-    if (!raw) return []
-    const parsed = JSON.parse(raw)
-    if (!Array.isArray(parsed)) throw new Error('pages storage is not an array')
-    return parsed.filter(isValidRecord)
-  } catch (error) {
-    // 备份损坏的原始数据,避免空数组在下次 persist 时覆盖真实数据
-    const raw = localStorage.getItem(STORAGE_KEYS.pages)
-    if (raw) backupCorrupted(raw)
-    console.error('[visio] 页面存储解析失败,已备份原始数据', error)
-    return []
-  }
+  return loadJsonCollection(STORAGE_KEYS.pages, isValidRecord, '页面')
 }
 
 /** 页面列表仓库:localStorage 的唯一访问点,后续接后端仅需改造此文件 */
@@ -58,6 +29,8 @@ export const usePagesStore = defineStore('pages', () => {
   const pages = ref<PageRecord[]>(loadPages())
   /** 最近一次持久化失败的错误信息;null 表示写入正常,供 UI 提示"保存失败" */
   const persistError = ref<string | null>(null)
+  /** 页面存储占用估算(localStorage 按 UTF-16 码元计配额,与字符串 length 同口径) */
+  const usageBytes = computed(() => JSON.stringify(pages.value).length)
 
   // 其他标签页修改存储时同步列表,缩小多标签互相覆盖的窗口
   if (typeof window !== 'undefined') {
@@ -124,7 +97,25 @@ export const usePagesStore = defineStore('pages', () => {
     persist()
   }
 
-  return { pages, persistError, persist, getPage, upsert, removePage, createPage, duplicatePage, renamePage }
+  /** 整表替换(备份导入用):records 需已通过 isValidRecord 校验 */
+  function replaceAll(records: PageRecord[]) {
+    pages.value = records
+    persist()
+  }
+
+  return {
+    pages,
+    persistError,
+    usageBytes,
+    persist,
+    getPage,
+    upsert,
+    removePage,
+    createPage,
+    duplicatePage,
+    renamePage,
+    replaceAll,
+  }
 })
 
 if (import.meta.hot) {

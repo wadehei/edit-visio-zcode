@@ -1,7 +1,9 @@
 import { defineStore, acceptHMRUpdate } from 'pinia'
 import { ref } from 'vue'
 
+import { STORAGE_KEYS } from '@/shared/constants'
 import { createId } from '@/shared/utils/id'
+import { loadJsonCollection } from '@/shared/utils/storage'
 
 export interface ComponentTemplate {
   id: string
@@ -11,28 +13,20 @@ export interface ComponentTemplate {
   createdAt: number
 }
 
-const STORAGE_KEY = 'visio:templates:v1'
+/** 组件模板合法性校验(备份导入复用) */
+export function isValidComponentTemplate(value: unknown): value is ComponentTemplate {
+  const t = value as ComponentTemplate | null
+  return (
+    !!t &&
+    typeof t.id === 'string' &&
+    typeof t.name === 'string' &&
+    typeof t.type === 'string' &&
+    !!t.props
+  )
+}
 
 function loadTemplates(): ComponentTemplate[] {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    if (!raw) return []
-    const parsed = JSON.parse(raw)
-    if (!Array.isArray(parsed)) throw new Error('templates storage is not an array')
-    return parsed.filter(
-      (t): t is ComponentTemplate =>
-        !!t && typeof t.id === 'string' && typeof t.name === 'string' && typeof t.type === 'string',
-    )
-  } catch (error) {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY)
-      if (raw) localStorage.setItem(`${STORAGE_KEY}:corrupted:${Date.now()}`, raw)
-    } catch {
-      /* 备份失败时忽略 */
-    }
-    console.error('[visio] 模板存储解析失败,已备份原始数据', error)
-    return []
-  }
+  return loadJsonCollection(STORAGE_KEYS.templates, isValidComponentTemplate, '组件模板')
 }
 
 /** 组件模板仓库:把配置好的组件存为可复用片段 */
@@ -40,7 +34,13 @@ export const useTemplatesStore = defineStore('templates', () => {
   const templates = ref<ComponentTemplate[]>(loadTemplates())
 
   function persist() {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(templates.value))
+    localStorage.setItem(STORAGE_KEYS.templates, JSON.stringify(templates.value))
+  }
+
+  /** 整表替换(备份导入用):records 需已通过 isValidComponentTemplate 校验 */
+  function replaceAll(records: ComponentTemplate[]) {
+    templates.value = records
+    persist()
   }
 
   function saveTemplate(name: string, type: string, props: Record<string, unknown>): ComponentTemplate {
@@ -63,7 +63,7 @@ export const useTemplatesStore = defineStore('templates', () => {
     persist()
   }
 
-  return { templates, saveTemplate, removeTemplate }
+  return { templates, saveTemplate, removeTemplate, replaceAll }
 })
 
 if (import.meta.hot) {

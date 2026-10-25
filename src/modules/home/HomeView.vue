@@ -1,21 +1,106 @@
 <script setup lang="ts">
+import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { ArrowDown, Edit, Plus, View } from '@element-plus/icons-vue'
 
 import { getMaterial } from '@/modules/materials'
 import PageRenderer from '@/modules/renderer/PageRenderer.vue'
+import PageTemplateDialog from './PageTemplateDialog.vue'
 import { usePagesStore } from '@/stores/pages'
-import { CANVAS_WIDTH } from '@/shared/constants'
-import { downloadJson } from '@/shared/utils/download'
+import { usePageTemplatesStore, type PageTemplate } from '@/stores/page-templates'
+import { useTemplatesStore } from '@/stores/templates'
+import { buildBackupFile, parseBackupFile } from '@/stores/backup'
+import { CANVAS_WIDTH, STORAGE_QUOTA } from '@/shared/constants'
+import { createId } from '@/shared/utils/id'
+import { deepClone } from '@/shared/utils/clone'
+import { toPageRecord } from '@/shared/page'
+import { downloadJson, readJsonFile } from '@/shared/utils/download'
 import { formatDateTime } from '@/shared/utils/format'
 
 const router = useRouter()
 const pagesStore = usePagesStore()
+const pageTemplatesStore = usePageTemplatesStore()
+const templatesStore = useTemplatesStore()
+const pageTemplateDialogVisible = ref(false)
+const backupInputRef = ref<HTMLInputElement | null>(null)
+
+const usagePercent = computed(() =>
+  Math.min(100, Math.round((pagesStore.usageBytes / STORAGE_QUOTA) * 100)),
+)
+const usageLabel = computed(() => {
+  const bytes = pagesStore.usageBytes
+  return bytes >= 1024 * 1024
+    ? `${(bytes / 1024 / 1024).toFixed(1)} MB`
+    : `${Math.max(1, Math.round(bytes / 1024))} KB`
+})
+const usageColor = computed(() =>
+  usagePercent.value >= 80 ? 'var(--visio-color-danger)' : 'var(--visio-color-warning)',
+)
 
 function createPage(kind: 'blank' | 'demo') {
   const record = pagesStore.createPage(kind)
   router.push(`/editor/${record.id}`)
+}
+
+/** 从页面模板新建页面:深拷贝 schema 并分配新页面 id,与模板脱钩 */
+function createFromPageTemplate(t: PageTemplate) {
+  const schema = deepClone(t.schema)
+  schema.id = createId('p')
+  schema.name = t.name
+  pagesStore.upsert(toPageRecord(schema))
+  router.push(`/editor/${schema.id}`)
+}
+
+function onCreateCommand(cmd: string | number | object) {
+  if (String(cmd) === 'page-template') {
+    pageTemplateDialogVisible.value = true
+    return
+  }
+  createPage(cmd as 'blank' | 'demo')
+}
+
+// ---- 全量备份/恢复:页面 + 组件模板 + 页面模板 打包为一个 JSON 文件 ----
+
+function exportBackup() {
+  const file = buildBackupFile(pagesStore.pages, templatesStore.templates, pageTemplatesStore.templates)
+  downloadJson(`visio-backup-${formatDateTime(file.exportedAt).replace(/[: ]/g, '-')}.json`, file)
+  ElMessage.success('备份已导出')
+}
+
+function onBackupCommand(cmd: string | number | object) {
+  if (String(cmd) === 'export') exportBackup()
+  else if (String(cmd) === 'import') backupInputRef.value?.click()
+}
+
+async function onBackupFile(e: Event) {
+  const input = e.target as HTMLInputElement
+  const file = input.files?.[0]
+  input.value = ''
+  if (!file) return
+  let parsed: ReturnType<typeof parseBackupFile>
+  try {
+    parsed = parseBackupFile(await readJsonFile(file))
+  } catch {
+    parsed = null
+  }
+  if (!parsed) {
+    ElMessage.error('导入失败:不是有效的备份文件')
+    return
+  }
+  try {
+    await ElMessageBox.confirm(
+      `将覆盖当前全部数据:导入 ${parsed.counts.pages} 个页面、${parsed.counts.componentTemplates} 个组件模板、${parsed.counts.pageTemplates} 个页面模板。此操作不可撤销,确定继续?`,
+      '导入备份',
+      { type: 'warning', confirmButtonText: '覆盖导入' },
+    )
+  } catch {
+    return
+  }
+  pagesStore.replaceAll(parsed.pages)
+  templatesStore.replaceAll(parsed.componentTemplates)
+  pageTemplatesStore.replaceAll(parsed.pageTemplates)
+  ElMessage.success('备份已导入')
 }
 
 function onCardCommand(id: string, cmd: string | number | object) {
@@ -78,7 +163,20 @@ function componentSummary(types: string[]): string {
           <p>移动端页面 · 可视化搭建</p>
         </div>
       </div>
-      <el-dropdown @command="(cmd: string | number | object) => createPage(cmd as 'blank' | 'demo')">
+      <el-dropdown @command="onBackupCommand">
+        <el-button>
+          备份
+          <el-icon class="el-icon--right"><ArrowDown /></el-icon>
+        </el-button>
+        <template #dropdown>
+          <el-dropdown-menu>
+            <el-dropdown-item command="export">导出全部数据</el-dropdown-item>
+            <el-dropdown-item command="import">导入备份(覆盖当前)</el-dropdown-item>
+          </el-dropdown-menu>
+        </template>
+      </el-dropdown>
+
+      <el-dropdown @command="onCreateCommand">
         <el-button type="primary" :icon="Plus">
           新建页面
           <el-icon class="el-icon--right"><ArrowDown /></el-icon>
@@ -87,10 +185,39 @@ function componentSummary(types: string[]): string {
           <el-dropdown-menu>
             <el-dropdown-item command="blank">空白页面</el-dropdown-item>
             <el-dropdown-item command="demo">从示例模板创建</el-dropdown-item>
+            <el-dropdown-item command="page-template" divided>
+              从页面模板创建{{ pageTemplatesStore.templates.length ? `(${pageTemplatesStore.templates.length})` : '' }}
+            </el-dropdown-item>
           </el-dropdown-menu>
         </template>
       </el-dropdown>
     </header>
+
+    <PageTemplateDialog
+      v-model="pageTemplateDialogVisible"
+      @use="createFromPageTemplate"
+    />
+
+    <input
+      ref="backupInputRef"
+      type="file"
+      accept="application/json,.json"
+      class="hidden-file"
+      @change="onBackupFile"
+    />
+
+    <div class="storage-bar" title="本地浏览器存储占用估算,超过配额将无法保存">
+      <el-progress
+        class="storage-bar-track"
+        :percentage="usagePercent"
+        :stroke-width="5"
+        :show-text="false"
+        :color="usageColor"
+      />
+      <span class="storage-bar-text" :class="{ warn: usagePercent >= 80 }">
+        存储已用 {{ usageLabel }}
+      </span>
+    </div>
 
     <main class="home-content">
       <div v-if="pagesStore.pages.length" class="page-grid">
@@ -200,6 +327,30 @@ function componentSummary(types: string[]): string {
   gap: 16px;
 }
 
+.storage-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: 320px;
+  margin: 0 auto 16px;
+}
+
+.storage-bar-track {
+  flex: 1;
+}
+
+.storage-bar-text {
+  flex-shrink: 0;
+  font-size: 12px;
+  color: var(--visio-text-secondary);
+  white-space: nowrap;
+}
+
+.storage-bar-text.warn {
+  color: var(--visio-color-danger);
+  font-weight: 600;
+}
+
 .page-card {
   background: var(--visio-bg-panel);
   border: 1px solid var(--visio-border);
@@ -302,5 +453,9 @@ function componentSummary(types: string[]): string {
 
 .home-empty span {
   font-size: 13px;
+}
+
+.hidden-file {
+  display: none;
 }
 </style>
