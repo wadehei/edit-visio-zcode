@@ -10,3 +10,6 @@ dist-ssr
 *.log
 test-results/
 playwright-report/
+stryker-tmp/
+reports/
+stryker.incremental.json

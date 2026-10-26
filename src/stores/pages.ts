@@ -92,9 +92,10 @@ export const usePagesStore = defineStore('pages', () => {
 
   function renamePage(id: string, name: string) {
     const record = getPage(id)
-    if (!record || !name) return
-    record.name = name
-    record.schema.name = name
+    const next = name.trim()
+    if (!record || !next) return
+    record.name = next
+    record.schema.name = next
     persist()
   }
 

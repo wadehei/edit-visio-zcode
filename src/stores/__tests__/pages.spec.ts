@@ -54,22 +54,29 @@ describe('pages store', () => {
     expect(JSON.parse(localStorage.getItem(STORAGE_KEYS.pages) ?? '[]')).toHaveLength(0)
   })
 
-  it('renamePage 同步记录名与 schema 名', () => {
+  it('renamePage 同步记录名与 schema 名并持久化,空名是 no-op', () => {
     const pages = usePagesStore()
     const a = pages.createPage('blank')
     pages.renamePage(a.id, '新名字')
     const record = pages.getPage(a.id)
     expect(record?.name).toBe('新名字')
     expect(record?.schema.name).toBe('新名字')
+    expect(JSON.parse(localStorage.getItem(STORAGE_KEYS.pages) ?? '[]')[0].name).toBe('新名字')
+
+    pages.renamePage(a.id, '   ') // 空白名不生效
+    expect(pages.getPage(a.id)?.name).toBe('新名字')
+    pages.renamePage('不存在的 id', '任意')
+    expect(pages.pages).toHaveLength(1)
   })
 
-  it('duplicatePage 生成副本且紧随原页', () => {
+  it('duplicatePage 生成副本且紧随原页,并持久化', () => {
     const pages = usePagesStore()
     const a = pages.createPage('blank')
     const copy = pages.duplicatePage(a.id)
     expect(copy?.name).toBe('未命名页面 副本')
     expect(pages.pages.map((p) => p.id)).toEqual([a.id, copy!.id])
     expect(copy?.id).not.toBe(a.id)
+    expect(JSON.parse(localStorage.getItem(STORAGE_KEYS.pages) ?? '[]')).toHaveLength(2)
   })
 
   it('存储损坏时备份原始数据并降级为空列表', () => {

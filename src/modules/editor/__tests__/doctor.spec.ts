@@ -61,6 +61,36 @@ describe('inspectPage', () => {
     expect(issues.some((i) => i.level === 'warning' && i.message.includes('商品信息不完整'))).toBe(true)
   })
 
+  it('商品列表为空触发专用告警(区别于信息不完整)', () => {
+    const issues = inspectPage(pageWith([{ id: 'c1', type: 'goods', props: { items: [] } }]))
+    expect(issues.some((i) => i.level === 'warning' && i.message.includes('商品卡片列表为空'))).toBe(true)
+  })
+
+  it('公告栏/按钮/图片的空内容规则', () => {
+    const issues = inspectPage(
+      pageWith([
+        { id: 'c1', type: 'notice-bar', props: { text: '' } },
+        { id: 'c2', type: 'button', props: { text: '  ' } },
+        { id: 'c3', type: 'image', props: { src: '' } },
+      ]),
+    )
+    expect(issues.some((i) => i.componentId === 'c1' && i.message.includes('公告栏内容为空'))).toBe(true)
+    expect(issues.some((i) => i.componentId === 'c2' && i.message.includes('按钮文字为空'))).toBe(true)
+    expect(issues.some((i) => i.componentId === 'c3' && i.message.includes('未设置图片地址'))).toBe(true)
+  })
+
+  it('魔方栅格:空白格子 warning,配齐仅缺链接 info', () => {
+    const blank = inspectPage(
+      pageWith([{ id: 'c1', type: 'magic-grid', props: { cells: [{ image: '/a.png' }, { image: '' }] } }]),
+    )
+    expect(blank.some((i) => i.level === 'warning' && i.message.includes('空白格子'))).toBe(true)
+
+    const noLink = inspectPage(
+      pageWith([{ id: 'c2', type: 'magic-grid', props: { cells: [{ image: '/a.png' }] } }]),
+    )
+    expect(noLink.some((i) => i.level === 'info' && i.message.includes('魔方栅格未配置跳转链接'))).toBe(true)
+  })
+
   it('配置完整的页面只剩链接建议', () => {
     const issues = inspectPage(
       pageWith([

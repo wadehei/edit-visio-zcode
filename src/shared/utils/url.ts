@@ -21,6 +21,6 @@ export function safeImageUrl(url: unknown): string | undefined {
   if (!value) return undefined
   if (/^data:image\//i.test(value)) return value
   if (/^(https?:)?\/\//i.test(value)) return value
-  if (/^(\.\/|\.\.?\/)/.test(value)) return value
+  if (/^(\/|#|\.\/|\.\.?\/)/.test(value)) return value
   return undefined
 }

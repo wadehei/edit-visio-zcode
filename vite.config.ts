@@ -9,6 +9,9 @@ export default defineConfig({
   // Vitest:只收集 src 下的单测,排除 Playwright 的 e2e/ 目录
   test: {
     include: ['src/**/*.spec.ts'],
+    // 组件测试挂载 SFC 时,unplugin 注入的 element-plus 样式 import 需走 Vite 管线
+    // (默认对 node_modules 外部化会以原生 ESM 加载 .css 直接报错)
+    server: { deps: { inline: [/element-plus/] } },
   },
   plugins: [
     vue(),

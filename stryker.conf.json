@@ -1,0 +1,23 @@
+{
+  "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
+  "packageManager": "npm",
+  "testRunner": "vitest",
+  "reporters": ["clear-text", "html", "progress"],
+  "coverageAnalysis": "perTest",
+  "mutate": [
+    "src/stores/editor.ts",
+    "src/stores/pages.ts",
+    "src/stores/backup.ts",
+    "src/modules/editor/drop-target.ts",
+    "src/shared/utils/storage.ts",
+    "src/shared/utils/url.ts",
+    "src/shared/utils/debounce.ts",
+    "src/shared/utils/color.ts",
+    "src/modules/editor/doctor.ts"
+  ],
+  "tempDirName": "stryker-tmp",
+  "timeoutMS": 30000,
+  "concurrency": 4,
+  "incremental": true,
+  "incrementalFile": "stryker.incremental.json"
+}
