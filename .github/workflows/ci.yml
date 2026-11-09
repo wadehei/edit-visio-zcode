@@ -55,3 +55,13 @@ jobs:
             tail -c 4000 stryker-run.log 2>/dev/null || echo "(no log)"
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
+          # 同时写成 error 注解(check-runs API 匿名可读,便于无凭据诊断)
+          tail -n 40 stryker-run.log 2>/dev/null | sed 's/\r$//' | while IFS= read -r line; do
+            [ -n "$line" ] && echo "::error::$line"
+          done || true
+      - name: 上传完整日志
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: stryker-log
+          path: stryker-run.log
