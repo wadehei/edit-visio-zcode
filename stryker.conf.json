@@ -16,7 +16,8 @@
     "src/modules/editor/doctor.ts"
   ],
   "tempDirName": "stryker-tmp",
-  "timeoutMS": 30000,
+  "timeoutMS": 90000,
+  "dryRunTimeoutMS": 300000,
   "concurrency": 4,
   "incremental": true,
   "incrementalFile": "stryker.incremental.json",

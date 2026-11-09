@@ -34,6 +34,7 @@ jobs:
   mutation:
     name: 变异测试(阈值 break=65)
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
