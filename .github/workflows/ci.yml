@@ -42,4 +42,16 @@ jobs:
           node-version: 20
           cache: npm
       - run: npm ci
-      - run: npx stryker run
+      - name: Run Stryker
+        run: |
+          npx stryker run 2>&1 | tee stryker-run.log
+          exit ${PIPESTATUS[0]}
+      - name: 失败时输出日志尾部到 summary
+        if: failure()
+        run: |
+          {
+            echo "### Stryker 输出尾部"
+            echo '```'
+            tail -c 4000 stryker-run.log 2>/dev/null || echo "(no log)"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
