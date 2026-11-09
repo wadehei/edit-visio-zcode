@@ -42,7 +42,8 @@ test('4x CPU 节流下编辑器交互帧预算', async ({ page }) => {
         const sample = (now: number) => {
           deltas.push(now - last)
           last = now
-          if (deltas.length < 30) {
+          // 足够大的采样窗,避免单次调度尖峰顶穿 p95
+          if (deltas.length < 120) {
             requestAnimationFrame(sample)
             return
           }
@@ -56,12 +57,12 @@ test('4x CPU 节流下编辑器交互帧预算', async ({ page }) => {
             )
             if (scrollArea) scrollArea.scrollTop = (scrollArea.scrollTop + 120) % 800
             i++
-            if (i < 20) requestAnimationFrame(interact)
+            if (i < 60) requestAnimationFrame(interact)
             else {
               const sorted = [...deltas].sort((a, b) => a - b)
               const p95 = sorted[Math.floor(sorted.length * 0.95)] ?? 0
-              // baseline:前 30 帧含静止帧;交互帧取尾部再算一次
-              const tail = sorted.slice(-20)
+              // 交互帧取尾部再算一次
+              const tail = sorted.slice(-60)
               resolve({ baselineP95: p95, interactP95: tail[Math.floor(tail.length * 0.95)] ?? 0 })
             }
           }

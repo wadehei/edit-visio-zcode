@@ -35,6 +35,27 @@ describe('inspectPage', () => {
     expect(issues.some((i) => i.level === 'info' && i.message.includes('默认名称'))).toBe(true)
   })
 
+  it('名称检查同时覆盖 name 与 title:改名未改标题仍提示', () => {
+    // name 已自定义、title 仍默认 → 说明是"或"语义,不是"且"
+    const renamedOnly = inspectPage({ ...createEmptyPage(), name: '自定义名' })
+    expect(
+      renamedOnly.some((i) => i.level === 'info' && i.message.includes('默认名称')),
+    ).toBe(true)
+
+    const bothCustom = inspectPage({ ...createEmptyPage(), name: '自定义名', title: '自定义标题' })
+    expect(bothCustom.some((i) => i.message.includes('默认名称'))).toBe(false)
+  })
+
+  it('文本空内容与占位文案同样告警', () => {
+    const issues = inspectPage(
+      pageWith([
+        { id: 'c1', type: 'text', props: { content: '' } },
+        { id: 'c2', type: 'text', props: { content: '请输入文本内容' } },
+      ]),
+    )
+    expect(issues.filter((i) => i.level === 'warning' && i.message.includes('占位'))).toHaveLength(2)
+  })
+
   it('文本占位内容被识别并可定位', () => {
     const issues = inspectPage(
       pageWith([{ id: 'c1', type: 'text', props: { content: '在这里输入文本内容' } }]),

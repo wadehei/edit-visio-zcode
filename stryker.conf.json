@@ -19,5 +19,10 @@
   "timeoutMS": 30000,
   "concurrency": 4,
   "incremental": true,
-  "incrementalFile": "stryker.incremental.json"
+  "incrementalFile": "stryker.incremental.json",
+  "thresholds": {
+    "high": 80,
+    "low": 70,
+    "break": 65
+  }
 }

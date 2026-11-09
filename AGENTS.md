@@ -27,8 +27,11 @@
 
 ```bash
 npm run check    # test + typecheck + lint,提交前必须全绿(pre-commit 自动执行)
+npx playwright test    # E2E:金路径/双标签并发/移动预览/备份/帧预算(6 用例)
+npx stryker run        # 变异测试,分数低于 65 分构建失败(thresholds.break)
 ```
 
+- 以上三道门在 GitHub Actions(CI)每次 push/PR 自动执行,本地不跑也会在远端被拦下。
 - 新功能必须带单元测试;修 bug 先写复现用例。
 - 提交信息用中文一行式:`<范围>:<做了什么>`,例如 `编辑器:组件支持隐藏/显示`。
 - Schema 加字段必须向后兼容(可选字段),加载侧过滤脏数据(参考 `stores/pages.ts` 的 `isValidRecord`)。

@@ -54,6 +54,26 @@ describe('backup', () => {
     expect(parsed?.pageTemplates.map((t) => t.id)).toEqual(['pt-ok'])
   })
 
+  it('备份往返稳定:export→parse→export 的 JSON 除时间戳外完全一致(id 归一化幂等)', () => {
+    const pages = usePagesStore()
+    const templates = useTemplatesStore()
+    const pageTemplates = usePageTemplatesStore()
+    pages.createPage('blank')
+    templates.saveTemplate('T', 'text', {})
+    pageTemplates.savePageTemplate('PT', schema())
+
+    const file1 = buildBackupFile(pages.pages, templates.templates, pageTemplates.templates)
+    const parsed = parseBackupFile(JSON.parse(JSON.stringify(file1)))!
+    const file2 = buildBackupFile(parsed.pages, parsed.componentTemplates, parsed.pageTemplates)
+
+    const stripTime = (f: unknown) => {
+      const rest = { ...(f as Record<string, unknown>) }
+      delete rest.exportedAt
+      return rest
+    }
+    expect(JSON.stringify(stripTime(file2))).toBe(JSON.stringify(stripTime(file1)))
+  })
+
   it('replaceAll 覆盖各 store 并持久化', () => {
     const pages = usePagesStore()
     pages.createPage('blank')
